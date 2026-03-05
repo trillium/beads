@@ -1094,4 +1094,14 @@ func init() {
 	hooksCmd.AddCommand(hooksRunCmd)
 
 	rootCmd.AddCommand(hooksCmd)
+
+	// Backward-compat: shim scripts call "bd hook <hook-name>" (singular).
+	// The command was removed when hook.go was deleted; re-add as alias for "bd hooks run".
+	rootCmd.AddCommand(&cobra.Command{
+		Use:    "hook <hook-name> [args...]",
+		Hidden: true,
+		Short:  "Execute a git hook (alias for 'hooks run')",
+		Args:   cobra.MinimumNArgs(1),
+		Run:    hooksRunCmd.Run,
+	})
 }

@@ -784,7 +784,7 @@ func runWispPurgeClosed(ctx context.Context, dryRun bool, force bool, excludeTyp
 		fmt.Println()
 	}
 
-	// Use batch deletion with cascade (wisps mostly reference other wisps)
+	// Use batch deletion with cascade (wisps mostly reference other wisps).
 	deleteBatch(nil, ids, force, dryRun, true, jsonOutput, false, "wisp gc --closed")
 
 	if !dryRun && force && !jsonOutput {

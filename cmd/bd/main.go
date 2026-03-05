@@ -385,6 +385,9 @@ var rootCmd = &cobra.Command{
 				} else if slices.Contains(noDbCommands, parentName) {
 					return
 				}
+			} else if slices.Contains(noDbCommands, parentName) {
+				// Subcommands of other no-db parents (e.g. "hooks run") also skip DB init.
+				return
 			}
 		}
 		if slices.Contains(noDbCommands, cmdName) {

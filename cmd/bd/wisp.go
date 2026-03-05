@@ -540,6 +540,7 @@ func runWispGC(cmd *cobra.Command, args []string) {
 	cleanAll, _ := cmd.Flags().GetBool("all")
 	closedMode, _ := cmd.Flags().GetBool("closed")
 	force, _ := cmd.Flags().GetBool("force")
+	chunkSize, _ := cmd.Flags().GetInt("chunk-size")
 
 	// Parse age threshold
 	ageThreshold := time.Hour // Default 1 hour
@@ -558,7 +559,7 @@ func runWispGC(cmd *cobra.Command, args []string) {
 
 	// --closed mode: purge all closed wisps (batch deletion)
 	if closedMode {
-		runWispPurgeClosed(ctx, dryRun, force)
+		runWispPurgeClosed(ctx, dryRun, force, chunkSize)
 		return
 	}
 
@@ -639,7 +640,8 @@ func runWispGC(cmd *cobra.Command, args []string) {
 
 // runWispPurgeClosed deletes all closed wisps using batch deletion.
 // Safe by default: preview-only without --force.
-func runWispPurgeClosed(ctx context.Context, dryRun bool, force bool) {
+// chunkSize > 0 splits the deletion into batches to avoid Dolt timeout on large sets.
+func runWispPurgeClosed(ctx context.Context, dryRun bool, force bool, chunkSize int) {
 	// Query closed ephemeral issues
 	statusClosed := types.StatusClosed
 	ephemeralTrue := true
@@ -718,8 +720,32 @@ func runWispPurgeClosed(ctx context.Context, dryRun bool, force bool) {
 		fmt.Println()
 	}
 
-	// Use batch deletion with cascade (wisps mostly reference other wisps)
-	deleteBatch(nil, ids, force, dryRun, true, jsonOutput, false, "wisp gc --closed")
+	// Use batch deletion with cascade (wisps mostly reference other wisps).
+	// Chunk to avoid Dolt i/o timeout on large sets (default: 50 per batch).
+	if chunkSize <= 0 {
+		chunkSize = 50
+	}
+	if len(ids) <= chunkSize {
+		deleteBatch(nil, ids, force, dryRun, true, jsonOutput, false, "wisp gc --closed")
+	} else {
+		totalDeleted := 0
+		for start := 0; start < len(ids); start += chunkSize {
+			end := start + chunkSize
+			if end > len(ids) {
+				end = len(ids)
+			}
+			chunk := ids[start:end]
+			if !jsonOutput {
+				fmt.Printf("Deleting chunk %d–%d of %d...\n", start+1, end, len(ids))
+			}
+			deleteBatch(nil, chunk, force, dryRun, true, jsonOutput, false, "wisp gc --closed")
+			totalDeleted += len(chunk)
+		}
+		if !dryRun && force && !jsonOutput {
+			fmt.Printf("\nTotal deleted: %d wisp(s) in %d chunk(s)\n",
+				totalDeleted, (len(ids)+chunkSize-1)/chunkSize)
+		}
+	}
 
 	if !dryRun && force && !jsonOutput {
 		fmt.Printf("\nHint: Run 'bd compact --dolt' to reclaim disk space\n")
@@ -744,6 +770,7 @@ func init() {
 	wispGCCmd.Flags().Bool("all", false, "Also clean closed wisps older than threshold")
 	wispGCCmd.Flags().Bool("closed", false, "Delete all closed wisps (ignores --age threshold)")
 	wispGCCmd.Flags().BoolP("force", "f", false, "Actually delete (default: preview only)")
+	wispGCCmd.Flags().Int("chunk-size", 50, "Max wisps per delete batch (prevents Dolt timeout on large sets)")
 
 	wispCmd.AddCommand(wispCreateCmd)
 	wispCmd.AddCommand(wispListCmd)

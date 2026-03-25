@@ -305,6 +305,69 @@ func TestDefaultConfig(t *testing.T) {
 			t.Errorf("expected port file port 14000, got %d", cfg.Port)
 		}
 	})
+
+	t.Run("failover_state_overrides_host_and_port", func(t *testing.T) {
+		// When GT_ROOT is set and dolt-failover-state.json indicates failover,
+		// DefaultConfig should use the failover host and port.
+		gtRoot := t.TempDir()
+		t.Setenv("GT_ROOT", gtRoot)
+		t.Setenv("BEADS_DOLT_SERVER_PORT", "")
+
+		daemonDir := filepath.Join(gtRoot, "daemon")
+		if err := os.MkdirAll(daemonDir, 0750); err != nil {
+			t.Fatal(err)
+		}
+		foState := `{"active_host":"10.0.0.5","active_port":3309,"in_failover":true}`
+		if err := os.WriteFile(filepath.Join(daemonDir, "dolt-failover-state.json"), []byte(foState), 0600); err != nil {
+			t.Fatal(err)
+		}
+
+		freshDir := t.TempDir()
+		cfg := DefaultConfig(freshDir)
+
+		if cfg.Host != "10.0.0.5" {
+			t.Errorf("expected failover host 10.0.0.5, got %s", cfg.Host)
+		}
+		if cfg.Port != 3309 {
+			t.Errorf("expected failover port 3309, got %d", cfg.Port)
+		}
+	})
+
+	t.Run("failover_state_not_in_failover_ignored", func(t *testing.T) {
+		// When in_failover is false, the failover state should be ignored.
+		gtRoot := t.TempDir()
+		t.Setenv("GT_ROOT", gtRoot)
+		t.Setenv("BEADS_DOLT_SERVER_PORT", "")
+
+		daemonDir := filepath.Join(gtRoot, "daemon")
+		if err := os.MkdirAll(daemonDir, 0750); err != nil {
+			t.Fatal(err)
+		}
+		foState := `{"active_host":"10.0.0.5","active_port":3309,"in_failover":false}`
+		if err := os.WriteFile(filepath.Join(daemonDir, "dolt-failover-state.json"), []byte(foState), 0600); err != nil {
+			t.Fatal(err)
+		}
+
+		freshDir := t.TempDir()
+		cfg := DefaultConfig(freshDir)
+
+		if cfg.Host != "127.0.0.1" {
+			t.Errorf("expected default host 127.0.0.1, got %s", cfg.Host)
+		}
+	})
+
+	t.Run("failover_state_no_gt_root_ignored", func(t *testing.T) {
+		// Without GT_ROOT, failover state is not read.
+		t.Setenv("GT_ROOT", "")
+		t.Setenv("BEADS_DOLT_SERVER_PORT", "")
+
+		freshDir := t.TempDir()
+		cfg := DefaultConfig(freshDir)
+
+		if cfg.Host != "127.0.0.1" {
+			t.Errorf("expected default host 127.0.0.1, got %s", cfg.Host)
+		}
+	})
 }
 
 func TestEnsurePortFile(t *testing.T) {

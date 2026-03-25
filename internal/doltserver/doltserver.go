@@ -18,6 +18,7 @@ package doltserver
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -314,6 +315,27 @@ func DefaultConfig(beadsDir string) *Config {
 	cfg := &Config{
 		BeadsDir: beadsDir,
 		Host:     "127.0.0.1",
+	}
+
+	// Failover override: if the Gas Town daemon has failed over to a different
+	// Dolt host, dolt-failover-state.json contains the active host:port.
+	// This mirrors gastown's DefaultConfig() logic so that bd commands follow
+	// the same failover as gt commands.
+	if gtRoot := os.Getenv("GT_ROOT"); gtRoot != "" {
+		foStateFile := filepath.Join(gtRoot, "daemon", "dolt-failover-state.json")
+		if data, err := os.ReadFile(foStateFile); err == nil { //nolint:gosec // G304: path derived from GT_ROOT env var, not user input
+			var foState struct {
+				ActiveHost string `json:"active_host"`
+				ActivePort int    `json:"active_port"`
+				InFailover bool   `json:"in_failover"`
+			}
+			if err := json.Unmarshal(data, &foState); err == nil && foState.InFailover {
+				cfg.Host = foState.ActiveHost
+				if foState.ActivePort > 0 {
+					cfg.Port = foState.ActivePort
+				}
+			}
+		}
 	}
 
 	// Check env var override first (used by tests and manual overrides)

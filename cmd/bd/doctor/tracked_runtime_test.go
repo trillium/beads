@@ -15,22 +15,16 @@ func TestShouldFlagTrackedFile(t *testing.T) {
 	}{
 		// Lock files
 		{"jsonl lock", ".jsonl.lock", true},
-		{"daemon lock", "daemon.lock", true},
 		{"dolt-monitor pid lock", "dolt-monitor.pid.lock", true},
 		{"dolt-server lock", "dolt-server.lock", true},
 		{"dolt-access lock", "dolt-access.lock", true},
 
-		// Daemon/server runtime
-		{"daemon pid", "daemon.pid", true},
-		{"daemon log", "daemon.log", true},
+		// Dolt server runtime
 		{"dolt-server pid", "dolt-server.pid", true},
 		{"dolt-server log", "dolt-server.log", true},
 		{"dolt-server port", "dolt-server.port", true},
 
-		// Socket and runtime
-		{"bd sock", "bd.sock", true},
-		{"bd sock startlock", "bd.sock.startlock", true},
-		{"exclusive lock", ".exclusive-lock", true},
+		// Runtime state
 		{"interactions jsonl", "interactions.jsonl", true},
 		{"push-state json", "push-state.json", true},
 		{"sync-state json", "sync-state.json", true},
@@ -110,8 +104,8 @@ func TestCheckTrackedRuntimeFiles_RuntimeFiles(t *testing.T) {
 
 	// Commit runtime files that should not be tracked
 	commitFile(t, dir, ".beads/config.yaml", "backend: dolt\n", "add config")
-	commitFile(t, dir, ".beads/daemon.pid", "12345\n", "add daemon pid")
-	commitFile(t, dir, ".beads/daemon.log", "log data\n", "add daemon log")
+	commitFile(t, dir, ".beads/dolt-server.pid", "12345\n", "add server pid")
+	commitFile(t, dir, ".beads/dolt-server.log", "log data\n", "add server log")
 	commitFile(t, dir, ".beads/.jsonl.lock", "", "add lock")
 
 	check := CheckTrackedRuntimeFiles(dir)
@@ -169,8 +163,8 @@ func TestFixTrackedRuntimeFiles(t *testing.T) {
 
 	// Commit runtime files
 	commitFile(t, dir, ".beads/config.yaml", "backend: dolt\n", "add config")
-	commitFile(t, dir, ".beads/daemon.pid", "12345\n", "add daemon pid")
-	commitFile(t, dir, ".beads/daemon.log", "log data\n", "add daemon log")
+	commitFile(t, dir, ".beads/dolt-server.pid", "12345\n", "add server pid")
+	commitFile(t, dir, ".beads/dolt-server.log", "log data\n", "add server log")
 
 	// Verify they're flagged
 	check := CheckTrackedRuntimeFiles(dir)
@@ -193,7 +187,7 @@ func TestFixTrackedRuntimeFiles(t *testing.T) {
 	}
 
 	// Verify local files still exist
-	if _, err := os.Stat(filepath.Join(dir, ".beads", "daemon.pid")); os.IsNotExist(err) {
-		t.Fatal("daemon.pid should still exist locally after untracking")
+	if _, err := os.Stat(filepath.Join(dir, ".beads", "dolt-server.pid")); os.IsNotExist(err) {
+		t.Fatal("dolt-server.pid should still exist locally after untracking")
 	}
 }

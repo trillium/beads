@@ -96,30 +96,6 @@ func TestCheckStaleLockFiles(t *testing.T) {
 		}
 	})
 
-	t.Run("stale startlock detected", func(t *testing.T) {
-		tmpDir := t.TempDir()
-		beadsDir := filepath.Join(tmpDir, ".beads")
-		if err := os.MkdirAll(beadsDir, 0755); err != nil {
-			t.Fatal(err)
-		}
-
-		// Create an old startlock
-		lockPath := filepath.Join(beadsDir, "bd.sock.startlock")
-		if err := os.WriteFile(lockPath, []byte("12345"), 0600); err != nil {
-			t.Fatal(err)
-		}
-		// Set modification time to 2 minutes ago
-		oldTime := time.Now().Add(-2 * time.Minute)
-		if err := os.Chtimes(lockPath, oldTime, oldTime); err != nil {
-			t.Fatal(err)
-		}
-
-		result := CheckStaleLockFiles(tmpDir)
-		if result.Status != StatusWarning {
-			t.Errorf("expected Warning for stale startlock, got %s: %s", result.Status, result.Message)
-		}
-	})
-
 	t.Run("fresh dolt-access.lock not stale", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		beadsDir := filepath.Join(tmpDir, ".beads")

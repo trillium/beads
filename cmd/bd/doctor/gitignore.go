@@ -14,14 +14,8 @@ dolt/
 dolt-access.lock
 
 # Runtime files
-bd.sock
-bd.sock.startlock
 sync-state.json
 last-touched
-.exclusive-lock
-
-# Daemon runtime (lock, log, pid)
-daemon.*
 
 # Interactions log (runtime, not versioned)
 interactions.jsonl
@@ -91,7 +85,6 @@ var requiredPatterns = []string{
 	"*.db?*",
 	"redirect",
 	"last-touched",
-	"bd.sock.startlock",
 	".sync.lock",
 	"export-state/",
 	"dolt/",
@@ -101,7 +94,6 @@ var requiredPatterns = []string{
 	"dolt-server.log",
 	"dolt-server.lock",
 	"dolt-server.port",
-	"daemon.*",
 	"interactions.jsonl",
 	"*.lock",
 	"*.corrupt.backup/",

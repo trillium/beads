@@ -12,7 +12,7 @@ import (
 
 // StaleLockFiles removes stale lock files from the .beads directory.
 // This is safe because:
-// - Bootstrap/sync/startup locks use flock, which is released on process exit
+// - Bootstrap/sync locks use flock, which is released on process exit
 // - If the flock is released but the file remains, the file is just clutter
 func StaleLockFiles(path string) error {
 	beadsDir := resolveBeadsDir(filepath.Join(path, ".beads"))
@@ -72,28 +72,6 @@ func StaleLockFiles(path string) error {
 		removed = append(removed, fmt.Sprintf("%d noms LOCK file(s)", n))
 		for _, e := range errs {
 			errors = append(errors, e.Error())
-		}
-	}
-
-	// Remove stale startup locks
-	entries, err := os.ReadDir(beadsDir)
-	if err == nil {
-		for _, entry := range entries {
-			if strings.HasSuffix(entry.Name(), ".startlock") {
-				info, err := entry.Info()
-				if err != nil {
-					continue
-				}
-				age := time.Since(info.ModTime())
-				if age > 30*time.Second {
-					lockPath := filepath.Join(beadsDir, entry.Name())
-					if err := os.Remove(lockPath); err != nil {
-						errors = append(errors, fmt.Sprintf("%s: %v", entry.Name(), err))
-					} else {
-						removed = append(removed, entry.Name())
-					}
-				}
-			}
 		}
 	}
 

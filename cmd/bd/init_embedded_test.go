@@ -465,7 +465,7 @@ func TestEmbeddedInit(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to read .beads/.gitignore: %v", err)
 		}
-		for _, pattern := range []string{"*.db", "dolt/", "bd.sock"} {
+		for _, pattern := range []string{"*.db", "dolt/", "dolt-server.pid"} {
 			if !strings.Contains(string(content), pattern) {
 				t.Errorf(".gitignore missing pattern: %s", pattern)
 			}

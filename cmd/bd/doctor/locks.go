@@ -72,27 +72,6 @@ func CheckStaleLockFiles(path string) DoctorCheck {
 	// files from crashed processes would prevent the Dolt server from opening
 	// databases. The auto-cleanup makes this a non-issue for most users.
 
-	// Check startup lock (bd.sock.startlock)
-	// Look for any .startlock files in beadsDir
-	entries, err := os.ReadDir(beadsDir)
-	if err == nil {
-		for _, entry := range entries {
-			if strings.HasSuffix(entry.Name(), ".startlock") {
-				info, err := entry.Info()
-				if err != nil {
-					continue
-				}
-				age := time.Since(info.ModTime())
-				// Startup locks should be very short-lived (< 30 seconds)
-				if age > 30*time.Second {
-					staleFiles = append(staleFiles, entry.Name())
-					details = append(details, fmt.Sprintf("%s: age %s (startup locks should be < 30s)",
-						entry.Name(), age.Round(time.Second)))
-				}
-			}
-		}
-	}
-
 	if len(staleFiles) == 0 {
 		return DoctorCheck{
 			Name:     "Lock Files",

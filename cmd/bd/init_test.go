@@ -155,7 +155,6 @@ func TestInitCommand(t *testing.T) {
 					"*.db-journal",
 					"*.db-wal",
 					"*.db-shm",
-					"bd.sock",
 					"dolt/",
 					"dolt-access.lock",
 				}

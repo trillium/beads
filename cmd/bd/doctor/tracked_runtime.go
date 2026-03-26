@@ -19,19 +19,11 @@ var trackedRuntimePatterns = []string{
 	"*.lock",
 	"*.pid.lock",
 
-	// Daemon / server runtime
-	"daemon.pid",
-	"daemon.log",
-	"daemon.lock",
+	// Dolt server runtime
 	"dolt-server.pid",
 	"dolt-server.log",
 	"dolt-server.lock",
 	"dolt-server.port",
-
-	// Socket files
-	"bd.sock",
-	"bd.sock.startlock",
-	".exclusive-lock",
 
 	// Runtime state
 	"interactions.jsonl",

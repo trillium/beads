@@ -67,7 +67,7 @@ func TestCheckFederationRemotesAPI_NoDoltDatabase(t *testing.T) {
 }
 
 func TestCheckFederationRemotesAPI_ServerNotRunning(t *testing.T) {
-	// Isolate from Gas Town daemon which would be detected as a running server
+	// Isolate from any Gas Town dolt server that would be detected as running
 	t.Setenv("GT_ROOT", "")
 
 	tmpDir := t.TempDir()
@@ -149,7 +149,7 @@ func TestDoltServerConfig_HonorsAutoStartOptOut(t *testing.T) {
 }
 
 func TestCheckFederationRemotesAPI_PidFileInBeadsDir(t *testing.T) {
-	// Isolate from Gas Town daemon which would be detected as a running server
+	// Isolate from any Gas Town dolt server that would be detected as running
 	t.Setenv("GT_ROOT", "")
 
 	// Verify the fix: PID file should be looked for in beadsDir, not doltPath.
@@ -497,7 +497,7 @@ func TestDoltDatabaseName_FromConfig(t *testing.T) {
 // returns StatusOK instead of erroring about the remotesapi port.
 // This is the bug described in GH#2273.
 func TestCheckFederationRemotesAPI_ServerRunningNoPeers(t *testing.T) {
-	// Isolate from Gas Town daemon — we'll simulate "server running" via
+	// Isolate from Gas Town — we'll simulate "server running" via
 	// a standalone PID file pointing at a real dolt process on the host.
 	t.Setenv("GT_ROOT", "")
 

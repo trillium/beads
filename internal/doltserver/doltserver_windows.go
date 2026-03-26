@@ -92,8 +92,8 @@ func listDoltProcessPIDs() []int {
 // isProcessInDir returns false on Windows. Windows doesn't expose process CWD
 // through standard APIs. The consequence: reclaimPort will kill any untracked
 // dolt server on the canonical port rather than adopting it. This is conservative
-// (safer than accidentally adopting the wrong server). PID file and daemon PID
-// file adoption paths still work.
+// (safer than accidentally adopting the wrong server). PID file adoption paths
+// still work.
 func isProcessInDir(pid int, dir string) bool {
 	return false
 }

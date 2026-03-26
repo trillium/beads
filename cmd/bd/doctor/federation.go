@@ -68,8 +68,7 @@ func CheckFederationRemotesAPI(path string) DoctorCheck {
 	}
 
 	// Check if dolt server is running using doltserver.IsRunning which
-	// correctly resolves PID file paths (in beadsDir, not doltPath)
-	// and handles Gas Town daemon PID files.
+	// correctly resolves PID file paths (in beadsDir, not doltPath).
 	serverState, _ := doltserver.IsRunning(beadsDir)
 	serverRunning := serverState != nil && serverState.Running
 

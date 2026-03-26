@@ -55,15 +55,6 @@ func TestAllocateEphemeralPortIPv6(t *testing.T) {
 func TestIsRunningNoServer(t *testing.T) {
 	dir := t.TempDir()
 
-	// Unset GT_ROOT so we don't pick up a real daemon PID
-	orig := os.Getenv("GT_ROOT")
-	os.Unsetenv("GT_ROOT")
-	defer func() {
-		if orig != "" {
-			os.Setenv("GT_ROOT", orig)
-		}
-	}()
-
 	state, err := IsRunning(dir)
 	if err != nil {
 		t.Fatalf("IsRunning error: %v", err)
@@ -73,64 +64,8 @@ func TestIsRunningNoServer(t *testing.T) {
 	}
 }
 
-func TestIsRunningChecksDaemonPidUnderGasTown(t *testing.T) {
-	dir := t.TempDir()
-	gtRoot := t.TempDir()
-
-	// Set GT_ROOT to simulate Gas Town environment
-	orig := os.Getenv("GT_ROOT")
-	os.Setenv("GT_ROOT", gtRoot)
-	defer func() {
-		if orig != "" {
-			os.Setenv("GT_ROOT", orig)
-		} else {
-			os.Unsetenv("GT_ROOT")
-		}
-	}()
-
-	// No daemon PID file, no standard PID file → not running
-	state, err := IsRunning(dir)
-	if err != nil {
-		t.Fatalf("IsRunning error: %v", err)
-	}
-	if state.Running {
-		t.Error("expected Running=false when no PID files exist")
-	}
-
-	// Write a stale daemon PID file → still not running
-	daemonDir := filepath.Join(gtRoot, "daemon")
-	if err := os.MkdirAll(daemonDir, 0750); err != nil {
-		t.Fatal(err)
-	}
-	daemonPidFile := filepath.Join(daemonDir, "dolt.pid")
-	if err := os.WriteFile(daemonPidFile, []byte("99999999"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	state, err = IsRunning(dir)
-	if err != nil {
-		t.Fatalf("IsRunning error: %v", err)
-	}
-	if state.Running {
-		t.Error("expected Running=false for stale daemon PID")
-	}
-
-	// Daemon PID file should NOT be cleaned up (it's owned by the daemon)
-	if _, err := os.Stat(daemonPidFile); os.IsNotExist(err) {
-		t.Error("daemon PID file should not be cleaned up by IsRunning")
-	}
-}
-
 func TestIsRunningStalePID(t *testing.T) {
 	dir := t.TempDir()
-
-	// Unset GT_ROOT so we don't pick up a real daemon PID
-	orig := os.Getenv("GT_ROOT")
-	os.Unsetenv("GT_ROOT")
-	defer func() {
-		if orig != "" {
-			os.Setenv("GT_ROOT", orig)
-		}
-	}()
 
 	// Write a PID file with a definitely-dead PID
 	pidFile := filepath.Join(dir, "dolt-server.pid")
@@ -177,15 +112,6 @@ func TestIsRunningStalePIDRemovesPortFile(t *testing.T) {
 
 func TestIsRunningCorruptPID(t *testing.T) {
 	dir := t.TempDir()
-
-	// Unset GT_ROOT so we don't pick up a real daemon PID
-	orig := os.Getenv("GT_ROOT")
-	os.Unsetenv("GT_ROOT")
-	defer func() {
-		if orig != "" {
-			os.Setenv("GT_ROOT", orig)
-		}
-	}()
 
 	pidFile := filepath.Join(dir, "dolt-server.pid")
 	if err := os.WriteFile(pidFile, []byte("not-a-number"), 0600); err != nil {
@@ -306,68 +232,6 @@ func TestDefaultConfig(t *testing.T) {
 		}
 	})
 
-	t.Run("failover_state_overrides_host_and_port", func(t *testing.T) {
-		// When GT_ROOT is set and dolt-failover-state.json indicates failover,
-		// DefaultConfig should use the failover host and port.
-		gtRoot := t.TempDir()
-		t.Setenv("GT_ROOT", gtRoot)
-		t.Setenv("BEADS_DOLT_SERVER_PORT", "")
-
-		daemonDir := filepath.Join(gtRoot, "daemon")
-		if err := os.MkdirAll(daemonDir, 0750); err != nil {
-			t.Fatal(err)
-		}
-		foState := `{"active_host":"10.0.0.5","active_port":3309,"in_failover":true}`
-		if err := os.WriteFile(filepath.Join(daemonDir, "dolt-failover-state.json"), []byte(foState), 0600); err != nil {
-			t.Fatal(err)
-		}
-
-		freshDir := t.TempDir()
-		cfg := DefaultConfig(freshDir)
-
-		if cfg.Host != "10.0.0.5" {
-			t.Errorf("expected failover host 10.0.0.5, got %s", cfg.Host)
-		}
-		if cfg.Port != 3309 {
-			t.Errorf("expected failover port 3309, got %d", cfg.Port)
-		}
-	})
-
-	t.Run("failover_state_not_in_failover_ignored", func(t *testing.T) {
-		// When in_failover is false, the failover state should be ignored.
-		gtRoot := t.TempDir()
-		t.Setenv("GT_ROOT", gtRoot)
-		t.Setenv("BEADS_DOLT_SERVER_PORT", "")
-
-		daemonDir := filepath.Join(gtRoot, "daemon")
-		if err := os.MkdirAll(daemonDir, 0750); err != nil {
-			t.Fatal(err)
-		}
-		foState := `{"active_host":"10.0.0.5","active_port":3309,"in_failover":false}`
-		if err := os.WriteFile(filepath.Join(daemonDir, "dolt-failover-state.json"), []byte(foState), 0600); err != nil {
-			t.Fatal(err)
-		}
-
-		freshDir := t.TempDir()
-		cfg := DefaultConfig(freshDir)
-
-		if cfg.Host != "127.0.0.1" {
-			t.Errorf("expected default host 127.0.0.1, got %s", cfg.Host)
-		}
-	})
-
-	t.Run("failover_state_no_gt_root_ignored", func(t *testing.T) {
-		// Without GT_ROOT, failover state is not read.
-		t.Setenv("GT_ROOT", "")
-		t.Setenv("BEADS_DOLT_SERVER_PORT", "")
-
-		freshDir := t.TempDir()
-		cfg := DefaultConfig(freshDir)
-
-		if cfg.Host != "127.0.0.1" {
-			t.Errorf("expected default host 127.0.0.1, got %s", cfg.Host)
-		}
-	})
 }
 
 func TestEnsurePortFile(t *testing.T) {
@@ -496,11 +360,11 @@ func TestMaxDoltServers(t *testing.T) {
 	})
 
 	t.Run("gastown_same_as_standalone", func(t *testing.T) {
-		// After daemon removal, GT_ROOT no longer affects maxDoltServers
+		// GT_ROOT does not affect maxDoltServers
 		t.Setenv("GT_ROOT", t.TempDir())
 
 		if max := maxDoltServers(); max != 3 {
-			t.Errorf("expected 3 (daemon removed, no special GT_ROOT handling), got %d", max)
+			t.Errorf("expected 3, got %d", max)
 		}
 	})
 }

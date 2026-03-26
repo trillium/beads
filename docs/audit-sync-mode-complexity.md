@@ -2,173 +2,67 @@
 
 **Wanted Item:** w-bd-004
 **Date:** 2026-03-04
-**Status:** Audit complete
+**Status:** Complete — all recommendations implemented
 
 ## Executive Summary
 
-Beads' sync subsystem has been significantly simplified through recent refactoring (v0.50-v0.53). The old multi-mode architecture (git-portable, belt-and-suspenders, dolt-native) has been collapsed to a single mode: **dolt-native**. However, vestigial configuration scaffolding and unnecessary abstraction layers remain. This audit identifies remaining complexity and recommends further simplifications.
+Beads' sync subsystem was significantly simplified through refactoring in v0.50-v0.61. The old multi-mode architecture (git-portable, belt-and-suspenders, dolt-native) has been fully collapsed to Dolt-native sync. All vestigial sync mode scaffolding has been removed.
 
-## Current Architecture
+### What Was Removed (v0.50-v0.61)
 
-### Sync Mode Configuration (Vestigial)
+- `SyncMode` type, `SyncTrigger` type, `GetSyncMode()`, `SyncConfig` struct
+- `sync.go` sync mode validation functions and tests
+- `sync.mode` and `sync.git-remote` config keys (no longer in yaml-only keys list)
+- `validateSyncConfig` renamed to `validateFederationConfig` (validates federation/remote config only)
+- Stale comments referencing `sync.mode=dolt-native` across config and test files
+- Old `bd sync` command (replaced by `bd dolt push`/`bd dolt pull`)
+- SQLite backend, JSONL sync, 3-way merge, tombstones, storage factory, daemon stubs
+- Dead git-portable sync functions
+- JSONL sync-branch pipeline (~11,000 lines)
 
-**File:** `internal/config/sync.go`
+## Remaining Architecture (Active, Well-Structured)
 
-The `SyncMode` type, validation functions, and config plumbing still exist despite there being only one valid mode:
+### Push/Pull Routing (Justified)
 
-```go
-type SyncMode string
-const SyncModeDoltNative SyncMode = "dolt-native"
-
-var validSyncModes = map[SyncMode]bool{
-    SyncModeDoltNative: true,
-}
-```
-
-`GetSyncMode()` is hardcoded to return `SyncModeDoltNative` regardless of configuration. Yet the infrastructure around it persists:
-
-- `SyncMode` type definition and `String()` method
-- `validSyncModes` map (1 entry)
-- `ValidSyncModes()` function (returns 1-element slice)
-- `IsValidSyncMode()` validation function
-- `SyncConfig` struct in `config.go` with `Mode` field
-- `GetSyncConfig()` that calls `GetSyncMode()`
-- Config default: `v.SetDefault("sync.mode", SyncModeDoltNative)`
-- Config validation in `cmd/bd/config.go` that checks `sync.mode` is valid
-- Tests for all of the above (`sync_test.go`: 6 test functions)
-
-**Recommendation: Remove.** Since there is only one mode and `GetSyncMode()` is hardcoded, all SyncMode machinery is dead weight. Any code that checks the sync mode can be simplified to unconditional dolt-native behavior.
-
-### Export/Import Trigger Configuration
-
-**File:** `internal/config/config.go` (lines 157-158)
-
-```go
-v.SetDefault("sync.export_on", SyncTriggerPush)  // push | change
-v.SetDefault("sync.import_on", SyncTriggerPull)   // pull | change
-```
-
-These config keys (`sync.export_on`, `sync.import_on`) still exist with two trigger values each (`push`/`change` for export, `pull`/`change` for import). They are read into `SyncConfig` via `GetSyncConfig()`.
-
-**Assessment:** These triggers remain meaningful for controlling when Dolt sync operations fire. However, since `bd sync` was removed (v0.51+, replaced by `bd dolt push`/`bd dolt pull`), and Dolt handles persistence directly, it is worth verifying whether these triggers are still consumed by any runtime code path. If they are only used in the hook system (`internal/hooks/`), they may still be relevant. If not, they are dead config.
-
-**Recommendation: Audit callers.** If `sync.export_on` and `sync.import_on` have no runtime consumers, remove them. If they are consumed, document which code paths use them.
-
-### Push/Pull Routing Complexity (Justified)
-
-**File:** `internal/storage/dolt/store.go` (lines 1351-1462)
+**File:** `internal/storage/dolt/store.go`
 
 Each of `Push()`, `ForcePush()`, and `Pull()` has a 3-way routing decision:
+1. **Git-protocol remote** (SSH, git+https://) → shell out to `dolt push/pull` CLI
+2. **Hosted Dolt with remoteUser** → `CALL DOLT_PUSH('--user', ...)` via SQL
+3. **Default** (DoltHub, S3, GCS, file) → `CALL DOLT_PUSH(?, ?)` via SQL
 
-1. **Git-protocol remote** (SSH, git+https://) -> shell out to `dolt push/pull` CLI
-2. **Hosted Dolt with remoteUser** -> `CALL DOLT_PUSH('--user', ...)` via SQL
-3. **Default** (DoltHub, S3, GCS, file) -> `CALL DOLT_PUSH(?, ?)` via SQL
-
-This produces significant code duplication. Each method repeats the same pattern:
-```go
-if s.isGitProtocolRemote(ctx) { ... CLI path ... }
-if s.remoteUser != "" { ... SQL with --user ... }
-// default SQL path
-```
-
-**Assessment:** This routing is necessary -- the three paths exist because Dolt has genuinely different authentication mechanisms. The comments explain why git-protocol remotes cannot use the SQL connection (MySQL connection timeouts during transfer). This is **justified complexity**.
-
-**Recommendation: Extract a helper.** The 3-way dispatch pattern could be extracted into a single `execDoltRemoteOp` helper that takes the operation (push/pull/fetch), force flag, and CLI args. This would eliminate ~50 lines of duplication across Push/ForcePush/Pull without changing semantics. However, this is a minor refactor and not urgent.
+This routing is necessary — the three paths exist because Dolt has genuinely different authentication mechanisms. The optional refactor to extract a `execDoltRemoteOp` helper remains a minor improvement opportunity.
 
 ### Federation Peer System (Active, Well-Structured)
 
-**File:** `internal/storage/dolt/federation.go` (340 lines)
-**File:** `internal/storage/dolt/credentials.go` (473 lines)
+**Files:** `internal/storage/dolt/federation.go`, `internal/storage/dolt/credentials.go`
 
-The federation subsystem provides:
-- Peer-to-peer sync: `Sync()`, `PushTo()`, `PullFrom()`, `Fetch()`
-- Credential management: AES-GCM encryption, key migration, peer CRUD
-- Sync status tracking: ahead/behind counts, conflict detection
-- CLI/SQL routing: same `isPeerGitProtocolRemote` pattern as main Push/Pull
-
-The `Sync()` method (federation.go:186-256) orchestrates a 5-step bidirectional sync: fetch, get-status, merge, resolve-conflicts, push. This is straightforward and well-commented.
-
-**Assessment:** This is active, well-structured code. The credential encryption with key migration (legacy SHA-256-derived key to random AES-256 key) is solid. The `withPeerCredentials` / `withEnvCredentials` pattern cleanly separates CLI-subprocess isolation from SQL-path mutex protection.
-
-**Recommendation: No changes needed.** This is appropriate complexity for federation.
+Peer-to-peer sync, credential management (AES-GCM), sync status tracking. No changes needed.
 
 ### Conflict Resolution Configuration (Active, Clean)
 
-**File:** `internal/config/sync.go` (lines 53-125)
+**File:** `internal/config/sync.go`
 
-Four conflict strategies (`newest`, `ours`, `theirs`, `manual`) and four field-level strategies (`newest`, `max`, `union`, `manual`) are well-defined with validation. These are actively used by the federation `Sync()` method for auto-resolution.
-
-**Assessment:** Clean, well-tested, appropriate complexity.
-
-**Recommendation: No changes needed.**
+Four conflict strategies (`newest`, `ours`, `theirs`, `manual`) and four field-level strategies. Used by federation `Sync()`. No changes needed.
 
 ### Sovereignty Tiers (Active, Clean)
 
-**File:** `internal/config/sync.go` (lines 127-168)
+**File:** `internal/config/sync.go`
 
-Four sovereignty tiers (T1-T4) for federation access control. Used in `FederationPeer.Sovereignty`.
-
-**Assessment:** Small, well-defined, appropriately simple.
-
-**Recommendation: No changes needed.**
+Four sovereignty tiers (T1-T4) for federation access control. No changes needed.
 
 ### Tracker SyncEngine (Active, Good Abstraction)
 
 **File:** `internal/tracker/engine.go`
 
-A shared sync engine for external trackers (Linear, GitLab, Jira) with `PullHooks`/`PushHooks` for customization. This replaced ~800 lines of duplicated sync code (v0.50.3 changelog).
+Shared sync engine for external trackers (Linear, GitLab, Jira). Separate from Dolt sync. No changes needed.
 
-**Assessment:** Good abstraction that unified three parallel implementations. Not part of the Dolt sync path -- this is for external issue tracker bidirectional sync.
-
-**Recommendation: No changes needed.** This is separate from Dolt sync mode and is already well-factored.
-
-### Auto-Increment Reset After Pull (Resolved)
-
-**Status:** Resolved in v0.60+ by migrating to UUID primary keys.
-
-The `resetAutoIncrements()` workaround was removed when all six affected tables
-(events, comments, issue_snapshots, compaction_snapshots, wisp_events,
-wisp_comments) were migrated from `BIGINT AUTO_INCREMENT` to `CHAR(36) UUID()`
-primary keys. UUID PKs eliminate counter collisions in multi-clone federation.
-
-## Summary of Recommendations
-
-| Area | Recommendation | Effort | Impact |
-|------|---------------|--------|--------|
-| SyncMode type + validation | **Remove entirely** | Small | Removes ~80 lines of dead code + ~100 lines of tests |
-| `sync.mode` config key | **Remove** (keep only as deprecated no-op) | Small | Simplifies config validation |
-| `sync.export_on`/`sync.import_on` | **Audit callers**, remove if dead | Small | Removes dead config or documents live usage |
-| Push/Pull/ForcePush 3-way routing | **Extract helper** (optional) | Medium | ~50 lines deduplication |
-| Federation peer system | **No change** | - | Already clean |
-| Conflict/field strategies | **No change** | - | Already clean |
-| Sovereignty tiers | **No change** | - | Already clean |
-| Tracker SyncEngine | **No change** | - | Already clean |
-| Auto-increment reset | **Resolved** — removed via UUID PK migration | - | Done |
-
-## Files Analyzed
-
-| File | Lines | Role |
-|------|-------|------|
-| `internal/config/sync.go` | 240 | Sync mode, conflict, sovereignty, field strategy types |
-| `internal/config/sync_test.go` | 436 | Tests for all sync config types |
-| `internal/config/config.go` | 921 | Config initialization, defaults, SyncConfig/ConflictConfig structs |
-| `internal/config/yaml_config.go` | ~300 | YAML config management, yaml-only keys |
-| `internal/storage/dolt/store.go` | 1668 | DoltStore: Push, Pull, ForcePush |
-| `internal/storage/dolt/federation.go` | 340 | Federation sync: Sync, PushTo, PullFrom, Fetch |
-| `internal/storage/dolt/credentials.go` | 473 | Federation peer credentials, encryption |
-| `internal/storage/versioned.go` | 60 | Shared types: Conflict, SyncStatus, FederationPeer |
-| `internal/tracker/engine.go` | ~200 | External tracker SyncEngine |
-| `internal/hooks/hooks.go` | ~100 | Hook runner (create/update/close events) |
-| `cmd/bd/config.go` | ~500 | CLI config commands, sync.mode validation |
-| `cmd/bd/info.go` | ~400 | Version history documenting sync removals |
-
-## Historical Context
-
-The sync subsystem has undergone major simplification across v0.50-v0.53:
+## Historical Timeline
 
 - **v0.50.3**: Tracker sync code unified via shared SyncEngine (~800 lines removed)
-- **v0.51.0**: SQLite backend, JSONL sync, 3-way merge, tombstones, storage factory, daemon stubs removed. `bd sync` removed (replaced by `bd dolt push`/`bd dolt pull`).
+- **v0.51.0**: SQLite backend, JSONL sync, 3-way merge, tombstones removed. `bd sync` replaced by `bd dolt push`/`bd dolt pull`
 - **v0.52.0**: Dead git-portable sync functions removed (#1793)
-- **v0.53.0**: JSONL sync-branch pipeline removed (~11,000 lines). Daemon infrastructure and 3-way merge remnants removed.
-
-The remaining SyncMode scaffolding is the last vestige of the old multi-mode era and can be safely removed.
+- **v0.53.0**: JSONL sync-branch pipeline removed (~11,000 lines)
+- **v0.55.0**: Dead sync mode scaffolding removed (SyncMode type, validation, config keys)
+- **v0.60.0**: Auto-increment reset workaround removed via UUID PK migration
+- **v0.61.0**: Final cleanup — vestigial `sync.mode` references removed from config code, comments, and docs

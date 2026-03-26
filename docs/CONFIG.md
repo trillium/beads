@@ -145,13 +145,9 @@ To override, set `BD_ACTOR` in your shell profile:
 export BD_ACTOR="my-github-handle"
 ```
 
-### Sync Mode Configuration
+### Sync Configuration
 
-The sync mode controls how beads synchronizes data with git and/or Dolt remotes.
-
-#### Sync Mode
-
-Beads uses `dolt-native` sync mode exclusively. Dolt remotes handle sync directly with cell-level merge. Use `bd export` for issue portability, `bd backup` / `bd backup restore` for supported JSONL backup snapshots, and `bd backup export-git` / `bd backup fetch-git` to move those snapshots through a git branch.
+Beads uses Dolt-native sync exclusively. Dolt remotes handle sync directly with cell-level merge. Use `bd export` for issue portability, `bd backup` / `bd backup restore` for supported JSONL backup snapshots, and `bd backup export-git` / `bd backup fetch-git` to move those snapshots through a git branch.
 
 #### Sync Triggers
 

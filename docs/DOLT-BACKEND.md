@@ -237,13 +237,9 @@ launchctl load ~/Library/LaunchAgents/com.local.dolt-server.plist
 tail -f /opt/homebrew/var/log/dolt.log
 ```
 
-## Sync Modes
+## Sync
 
-Dolt supports multiple sync strategies:
-
-### Sync Mode
-
-Beads uses `dolt-native` sync mode exclusively:
+Beads uses Dolt-native sync exclusively:
 
 - Uses Dolt remotes (DoltHub, S3, GCS, etc.)
 - Native database-level sync with cell-level merge

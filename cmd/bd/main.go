@@ -104,7 +104,7 @@ var readOnlyCommands = map[string]bool{
 	"graph":      true,
 	"duplicates": true,
 	"comments":   true, // list comments (not add)
-	"current":    true, // bd sync mode current
+	"current":    true, // bd show --current
 	"backup":     true, // reads from Dolt, writes only to .beads/backup/
 	"export":     true, // reads from Dolt, writes JSONL to file/stdout
 }

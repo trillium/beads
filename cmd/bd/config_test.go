@@ -308,8 +308,8 @@ func TestIsValidRemoteURL(t *testing.T) {
 	}
 }
 
-// TestValidateSyncConfig tests the sync config validation function
-func TestValidateSyncConfig(t *testing.T) {
+// TestValidateFederationConfig tests the federation config validation function
+func TestValidateFederationConfig(t *testing.T) {
 	// Create a temp directory for testing
 	tmpDir := t.TempDir()
 	beadsDir := filepath.Join(tmpDir, ".beads")
@@ -325,7 +325,7 @@ func TestValidateSyncConfig(t *testing.T) {
 			t.Fatalf("Failed to write config.yaml: %v", err)
 		}
 
-		issues := validateSyncConfig(tmpDir)
+		issues := validateFederationConfig(tmpDir)
 		// After JSONL removal, Dolt sync requires federation.remote
 		if len(issues) != 1 {
 			t.Errorf("Expected 1 issue (missing federation.remote) for empty config, got: %v", issues)
@@ -341,7 +341,7 @@ federation:
 			t.Fatalf("Failed to write config.yaml: %v", err)
 		}
 
-		issues := validateSyncConfig(tmpDir)
+		issues := validateFederationConfig(tmpDir)
 		found := false
 		for _, issue := range issues {
 			if strings.Contains(issue, "federation.sovereignty") {
@@ -363,7 +363,7 @@ sync:
 			t.Fatalf("Failed to write config.yaml: %v", err)
 		}
 
-		issues := validateSyncConfig(tmpDir)
+		issues := validateFederationConfig(tmpDir)
 		found := false
 		for _, issue := range issues {
 			if strings.Contains(issue, "federation.remote") && strings.Contains(issue, "required") {
@@ -385,7 +385,7 @@ federation:
 			t.Fatalf("Failed to write config.yaml: %v", err)
 		}
 
-		issues := validateSyncConfig(tmpDir)
+		issues := validateFederationConfig(tmpDir)
 		found := false
 		for _, issue := range issues {
 			if strings.Contains(issue, "federation.remote") && strings.Contains(issue, "not a valid remote URL") {
@@ -412,7 +412,7 @@ federation:
 			t.Fatalf("Failed to write config.yaml: %v", err)
 		}
 
-		issues := validateSyncConfig(tmpDir)
+		issues := validateFederationConfig(tmpDir)
 		if len(issues) != 0 {
 			t.Errorf("Expected no issues for valid config, got: %v", issues)
 		}

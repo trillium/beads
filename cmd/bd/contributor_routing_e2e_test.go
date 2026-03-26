@@ -844,8 +844,8 @@ func TestExplicitRoleOverride(t *testing.T) {
 	}
 }
 
-// TestRoutingWithAllSyncModes is a table-driven test covering all sync mode combinations
-func TestRoutingWithAllSyncModes(t *testing.T) {
+// TestRoutingWithAllStoreModes is a table-driven test covering all store mode combinations
+func TestRoutingWithAllStoreModes(t *testing.T) {
 	syncModes := []struct {
 		name       string
 		mode       string

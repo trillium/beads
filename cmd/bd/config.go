@@ -287,7 +287,7 @@ func showConfigYAMLOverrides(dbConfig map[string]string) {
 	yamlKeys := []string{
 		"no-db", "json", "actor", "identity",
 		"routing.mode", "routing.default", "routing.maintainer", "routing.contributor",
-		"sync.mode", "sync.git-remote", "no-push", "no-git-ops",
+		"no-push", "no-git-ops",
 		"git.author", "git.no-gpg-sign",
 		"create.require-description",
 		"validation.on-create", "validation.on-sync",
@@ -350,13 +350,12 @@ var configUnsetCmd = &cobra.Command{
 
 var configValidateCmd = &cobra.Command{
 	Use:   "validate",
-	Short: "Validate sync-related configuration",
-	Long: `Validate sync-related configuration settings.
+	Short: "Validate federation and routing configuration",
+	Long: `Validate federation and routing configuration settings.
 
 Checks:
-  - sync.mode is a valid value (dolt-native)
   - federation.sovereignty is valid (T1, T2, T3, T4, or empty)
-  - federation.remote is set when sync.mode requires it
+  - federation.remote is set (required for Dolt sync)
   - Remote URL format is valid (dolthub://, gs://, s3://, file://)
   - routing.mode is valid (auto, maintainer, contributor, explicit)
 
@@ -381,7 +380,7 @@ Examples:
 		doctorCheck := doctor.CheckConfigValues(repoPath)
 
 		// Run additional sync-related validations
-		syncIssues := validateSyncConfig(repoPath)
+		syncIssues := validateFederationConfig(repoPath)
 
 		// Combine results
 		allIssues := []string{}
@@ -416,9 +415,9 @@ Examples:
 	},
 }
 
-// validateSyncConfig performs additional sync-related config validation
+// validateFederationConfig performs federation and remote config validation
 // beyond what doctor.CheckConfigValues covers.
-func validateSyncConfig(repoPath string) []string {
+func validateFederationConfig(repoPath string) []string {
 	var issues []string
 
 	// Load config.yaml directly from the repo path

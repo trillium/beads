@@ -658,8 +658,8 @@ bd doctor
 bd dolt push
 bd dolt pull
 
-# Check sync configuration
-bd config get sync.mode
+# Check federation configuration
+bd config get federation.remote
 ```
 
 ## Ready Work and Dependencies

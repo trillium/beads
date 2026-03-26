@@ -266,7 +266,7 @@ func TestFindDatabasePath_BEADS_DB_DirectoryTrailingSlash(t *testing.T) {
 }
 
 // TestHasBeadsProjectFiles verifies that hasBeadsProjectFiles correctly
-// distinguishes between project directories and daemon-only directories (bd-420)
+// distinguishes between project directories and registry-only directories (bd-420)
 func TestHasBeadsProjectFiles(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -279,7 +279,7 @@ func TestHasBeadsProjectFiles(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "daemon registry only",
+			name:     "registry only",
 			files:    []string{"registry.json", "registry.lock"},
 			expected: false,
 		},
@@ -339,9 +339,9 @@ func TestHasBeadsProjectFiles(t *testing.T) {
 	}
 }
 
-// TestFindBeadsDirSkipsDaemonRegistry verifies that FindBeadsDir skips
-// directories containing only daemon registry files (bd-420)
-func TestFindBeadsDirSkipsDaemonRegistry(t *testing.T) {
+// TestFindBeadsDirSkipsRegistryOnly verifies that FindBeadsDir skips
+// directories containing only legacy registry files (bd-420)
+func TestFindBeadsDirSkipsRegistryOnly(t *testing.T) {
 	// Save original state
 	originalEnv := os.Getenv("BEADS_DIR")
 	defer func() {
@@ -354,13 +354,13 @@ func TestFindBeadsDirSkipsDaemonRegistry(t *testing.T) {
 	os.Unsetenv("BEADS_DIR")
 
 	// Create temp directory structure
-	tmpDir, err := os.MkdirTemp("", "beads-daemon-test-*")
+	tmpDir, err := os.MkdirTemp("", "beads-registry-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create .beads with only daemon registry files (should be skipped)
+	// Create .beads with only registry files (should be skipped)
 	beadsDir := filepath.Join(tmpDir, ".beads")
 	if err := os.MkdirAll(beadsDir, 0755); err != nil {
 		t.Fatal(err)
@@ -372,14 +372,14 @@ func TestFindBeadsDirSkipsDaemonRegistry(t *testing.T) {
 	// Change to temp dir
 	t.Chdir(tmpDir)
 
-	// Should NOT find the daemon-only directory
+	// Should NOT find the registry-only directory
 	result := FindBeadsDir()
 	if result != "" {
 		// Resolve symlinks for comparison
 		resultResolved, _ := filepath.EvalSymlinks(result)
 		beadsDirResolved, _ := filepath.EvalSymlinks(beadsDir)
 		if resultResolved == beadsDirResolved {
-			t.Errorf("FindBeadsDir() should skip daemon-only directory, got %q", result)
+			t.Errorf("FindBeadsDir() should skip registry-only directory, got %q", result)
 		}
 	}
 }
@@ -397,7 +397,7 @@ func TestFindBeadsDirValidatesBeadsDirEnv(t *testing.T) {
 		}
 	}()
 
-	// Create temp directory with only daemon registry files
+	// Create temp directory with only registry files
 	tmpDir, err := os.MkdirTemp("", "beads-env-test-*")
 	if err != nil {
 		t.Fatal(err)
@@ -408,16 +408,16 @@ func TestFindBeadsDirValidatesBeadsDirEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Set BEADS_DIR to daemon-only directory
+	// Set BEADS_DIR to registry-only directory
 	os.Setenv("BEADS_DIR", tmpDir)
 
-	// Should NOT return the daemon-only directory
+	// Should NOT return the registry-only directory
 	result := FindBeadsDir()
 	if result != "" {
 		resultResolved, _ := filepath.EvalSymlinks(result)
 		tmpDirResolved, _ := filepath.EvalSymlinks(tmpDir)
 		if resultResolved == tmpDirResolved {
-			t.Errorf("FindBeadsDir() should skip BEADS_DIR with only daemon files, got %q", result)
+			t.Errorf("FindBeadsDir() should skip BEADS_DIR with only registry files, got %q", result)
 		}
 	}
 

@@ -38,14 +38,3 @@ bd list --json | head
 # Push the resolved state
 bd dolt push
 ```
-
-## Legacy: JSONL Merge Conflicts
-
-If you encounter merge conflicts in `.beads/issues.jsonl` from a legacy setup, import the resolved file:
-
-```bash
-# Resolve the git conflict in the JSONL file manually, then:
-bd import -i .beads/issues.jsonl
-git add .beads/issues.jsonl
-git merge --continue
-```

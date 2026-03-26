@@ -317,7 +317,7 @@ npm install -g @beads/bd
 | Binary download | ✅ Full |
 | CLI wrapper | ✅ Full |
 | Basic commands | ✅ High (8 commands) |
-| JSONL sync | ✅ Full |
+| Dolt sync | ✅ Full |
 | Platform detection | ✅ Full |
 | Error handling | ⚠️ Partial |
 | MCP server | ❌ Not included |

@@ -116,20 +116,6 @@ bd init --stealth        # Full invisible mode (also skips hooks + agents)
 push = ["util", "exec", "--", "sh", "-c", "bd dolt commit && bd dolt push && jj git push \"$@\"", ""]
 ```
 
-### Merge Conflicts
-
-Configure jj to use beads' merge driver for `.beads/issues.jsonl`:
-
-```toml
-# ~/.config/jj/config.toml
-[merge-tools.beads-merge]
-program = "bd"
-merge-args = ["merge", "$output", "$base", "$left", "$right"]
-merge-conflict-exit-codes = [1]
-```
-
-Then resolve with: `jj resolve --tool=beads-merge .beads/issues.jsonl`
-
 ## Git Hooks
 
 ### External Hook Manager Support
@@ -292,41 +278,6 @@ See [MULTI_REPO_MIGRATION.md](MULTI_REPO_MIGRATION.md) for complete guide.
 ### Git LFS Considerations
 
 The Dolt database directory (`.beads/dolt/`) should be gitignored, not tracked via LFS or regular git.
-
-## Custom Merge Driver
-
-bd includes a built-in merge driver for resolving conflicts in `.beads/issues.jsonl` files. This replaces the standalone `beads-merge` binary that was previously maintained in a separate repository.
-
-### Alternative: Standalone beads-merge Binary (Deprecated)
-
-> **⚠️ Deprecated:** The standalone `beads-merge` binary (previously hosted at `github.com/neongreen/mono`) is no longer maintained and may be incompatible with current versions of bd. Use `bd merge` instead.
-
-The built-in `bd merge` command provides the same functionality:
-
-```bash
-bd merge <output> <base> <left> <right>
-```
-
-### Jujutsu Integration
-
-> See also: [Branchless Workflows](#branchless-workflows-jujutsu--jj) for a complete guide.
-
-**For [Jujutsu](https://martinvonz.github.io/jj/) users**, add to `~/.config/jj/config.toml`:
-
-```toml
-[merge-tools.beads-merge]
-program = "bd"
-merge-args = ["merge", "$output", "$base", "$left", "$right"]
-merge-conflict-exit-codes = [1]
-```
-
-Then resolve conflicts with:
-
-```bash
-jj resolve --tool=beads-merge .beads/issues.jsonl
-```
-
-This configures Jujutsu to invoke `bd merge` as its merge tool, restricted to `.beads/issues.jsonl` (since it only handles beads data conflicts, not general file conflicts).
 
 ## See Also
 

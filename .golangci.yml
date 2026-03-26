@@ -122,11 +122,6 @@ linters:
           - errcheck
         text: "Error return value of .*(Close|Rollback|RemoveAll|Setenv|Unsetenv|Chdir|MkdirAll|Remove|Write|SetReadDeadline|SetDeadline|Start|Stop).* is not checked"
 
-      # unparam: Placeholder functions that may return errors in future implementation
-      - path: 'cmd/bd/jira\.go'
-        linters:
-          - unparam
-        text: 'reimportConflicts|resolveConflictsByTimestamp'
       # unparam: readOnly param kept for API symmetry with fix/sqlite_open.go
       - path: 'cmd/bd/doctor/sqlite_open\.go'
         linters:

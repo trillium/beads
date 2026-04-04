@@ -238,6 +238,29 @@ func (s *DoltStore) GetInfraTypes(ctx context.Context) map[string]bool {
 	return result
 }
 
+// syncCustomTypesFromYAML seeds types.custom and status.custom into the DB config
+// table from config.yaml if they aren't already set. This ensures transactional
+// code paths (e.g., GetCustomTypesTx in issueops) can find custom types without
+// a config.yaml fallback. Called during schema initialization. (bd-c6z)
+func syncCustomTypesFromYAML(ctx context.Context, db *sql.DB) {
+	seedConfigKey := func(key string, yamlValues []string) {
+		if len(yamlValues) == 0 {
+			return
+		}
+		var existing string
+		err := db.QueryRowContext(ctx, "SELECT value FROM config WHERE `key` = ?", key).Scan(&existing)
+		if err == nil && existing != "" {
+			return // Already set in DB, don't overwrite
+		}
+		value := strings.Join(yamlValues, ",")
+		_, _ = db.ExecContext(ctx,
+			"INSERT INTO config (`key`, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)",
+			key, value)
+	}
+	seedConfigKey("types.custom", config.GetCustomTypesFromYAML())
+	seedConfigKey("status.custom", config.GetCustomStatusesFromYAML())
+}
+
 // parseCommaSeparatedList splits a comma-separated string into a slice of trimmed entries.
 // Empty entries are filtered out.
 func parseCommaSeparatedList(value string) []string {

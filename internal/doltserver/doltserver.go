@@ -25,6 +25,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -41,6 +42,10 @@ const maxEphemeralPortAttempts = 10
 // DefaultSharedServerPort is the default port for shared server mode.
 // Uses 3308 to avoid conflict with Gas Town which uses 3307.
 const DefaultSharedServerPort = 3308
+
+// deprecatedPortWarning ensures the metadata.json dolt_server_port
+// deprecation warning is emitted at most once per process.
+var deprecatedPortWarning sync.Once
 
 // IsSharedServerMode returns true if shared server mode is enabled.
 // Checks (in priority order):
@@ -351,9 +356,11 @@ func DefaultConfig(beadsDir string) *Config {
 	if cfg.Port == 0 {
 		if metaCfg, err := configfile.Load(beadsDir); err == nil && metaCfg != nil {
 			if metaCfg.DoltServerPort > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: dolt_server_port in metadata.json is deprecated (can cause cross-project data leakage).\n")
-				fmt.Fprintf(os.Stderr, "  The port file (.beads/dolt-server.port) is now the primary source.\n")
-				fmt.Fprintf(os.Stderr, "  Remove dolt_server_port from .beads/metadata.json to silence this warning.\n")
+				deprecatedPortWarning.Do(func() {
+					fmt.Fprintf(os.Stderr, "Warning: dolt_server_port in metadata.json is deprecated (can cause cross-project data leakage).\n")
+					fmt.Fprintf(os.Stderr, "  The port file (.beads/dolt-server.port) is now the primary source.\n")
+					fmt.Fprintf(os.Stderr, "  Remove dolt_server_port from .beads/metadata.json to silence this warning.\n")
+				})
 				cfg.Port = metaCfg.DoltServerPort
 			}
 		}

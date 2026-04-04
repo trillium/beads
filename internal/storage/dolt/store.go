@@ -1075,6 +1075,10 @@ func initSchemaOnDB(ctx context.Context, db *sql.DB) error {
 		}
 	}
 
+	// Seed types.custom and status.custom from config.yaml into the DB so that
+	// transactional code paths (GetCustomTypesTx) find them without fallback. (bd-c6z)
+	syncCustomTypesFromYAML(ctx, db)
+
 	// Apply index migrations for existing databases.
 	// CREATE TABLE IF NOT EXISTS won't add new indexes to existing tables.
 	indexMigrations := []string{

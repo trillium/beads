@@ -499,6 +499,61 @@ func TestGetCustomTypes(t *testing.T) {
 	}
 }
 
+// TestSyncCustomTypesFromYAML_PreservesExistingDBValues verifies that
+// syncCustomTypesFromYAML does not overwrite types.custom when it is
+// already set in the database. (bd-c6z)
+func TestSyncCustomTypesFromYAML_PreservesExistingDBValues(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	ctx, cancel := testContext(t)
+	defer cancel()
+
+	// Pre-set types.custom in DB
+	existing := "molecule,gate,agent"
+	if err := store.SetConfig(ctx, "types.custom", existing); err != nil {
+		t.Fatalf("SetConfig failed: %v", err)
+	}
+
+	// Run sync — should not overwrite because DB already has a value
+	syncCustomTypesFromYAML(ctx, store.db)
+
+	// Verify the DB value was NOT changed
+	value, err := store.GetConfig(ctx, "types.custom")
+	if err != nil {
+		t.Fatalf("GetConfig failed: %v", err)
+	}
+	if value != existing {
+		t.Errorf("syncCustomTypesFromYAML overwrote existing DB value: got %q, want %q", value, existing)
+	}
+}
+
+// TestSyncCustomTypesFromYAML_NoopWithoutYAML verifies that
+// syncCustomTypesFromYAML is a no-op when config.yaml has no custom types
+// (the common test environment case). (bd-c6z)
+func TestSyncCustomTypesFromYAML_NoopWithoutYAML(t *testing.T) {
+	store, cleanup := setupTestStore(t)
+	defer cleanup()
+
+	ctx, cancel := testContext(t)
+	defer cancel()
+
+	// Ensure types.custom is NOT in the DB
+	_ = store.DeleteConfig(ctx, "types.custom")
+
+	// Run sync — config.yaml is not set in test env, so this should be a no-op
+	syncCustomTypesFromYAML(ctx, store.db)
+
+	// Verify types.custom was not created (no yaml, no seed)
+	value, err := store.GetConfig(ctx, "types.custom")
+	if err != nil {
+		t.Fatalf("GetConfig failed: %v", err)
+	}
+	if value != "" {
+		t.Errorf("syncCustomTypesFromYAML created types.custom from nothing: got %q", value)
+	}
+}
+
 func TestDoltStoreIssue(t *testing.T) {
 	store, cleanup := setupTestStore(t)
 	defer cleanup()

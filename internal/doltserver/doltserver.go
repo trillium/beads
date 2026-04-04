@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -99,6 +100,10 @@ const GlobalIssuePrefix = "global"
 // Used for project identity verification — the global DB doesn't belong to
 // any single project, so it uses this fixed value instead of a random UUID.
 const GlobalProjectID = "00000000-0000-0000-0000-000000000000"
+
+// deprecatedPortWarning ensures the metadata.json dolt_server_port
+// deprecation warning is emitted at most once per process.
+var deprecatedPortWarning sync.Once
 
 // IsSharedServerMode returns true if shared server mode is enabled.
 // Checks (in priority order):
@@ -505,9 +510,11 @@ func DefaultConfig(beadsDir string) *Config {
 	if cfg.Port == 0 {
 		if metaCfg, err := configfile.Load(beadsDir); err == nil && metaCfg != nil {
 			if metaCfg.DoltServerPort > 0 {
-				fmt.Fprintf(os.Stderr, "Warning: dolt_server_port in metadata.json is deprecated (can cause cross-project data leakage).\n")
-				fmt.Fprintf(os.Stderr, "  The port file (.beads/dolt-server.port) is now the primary source.\n")
-				fmt.Fprintf(os.Stderr, "  Remove dolt_server_port from .beads/metadata.json to silence this warning.\n")
+				deprecatedPortWarning.Do(func() {
+					fmt.Fprintf(os.Stderr, "Warning: dolt_server_port in metadata.json is deprecated (can cause cross-project data leakage).\n")
+					fmt.Fprintf(os.Stderr, "  The port file (.beads/dolt-server.port) is now the primary source.\n")
+					fmt.Fprintf(os.Stderr, "  Remove dolt_server_port from .beads/metadata.json to silence this warning.\n")
+				})
 				cfg.Port = metaCfg.DoltServerPort
 			}
 		}

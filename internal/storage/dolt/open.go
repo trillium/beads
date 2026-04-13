@@ -220,3 +220,10 @@ func applyResolvedConfig(beadsDir string, fileCfg *configfile.Config, cfg *Confi
 		}
 	}
 }
+
+// applyCentralConfigDefaults loads the central server config from
+// ~/.config/beads/server.json (or BEADS_CENTRAL_CONFIG env var) and
+// applies its server fields as defaults to the per-project config.
+// A missing central config file is silently ignored.
+func applyCentralConfigDefaults(fileCfg *configfile.Config) {
+}

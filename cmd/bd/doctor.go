@@ -59,6 +59,7 @@ var (
 	doctorServer                    bool   // run server mode health checks
 	doctorMigration                 string // migration validation mode: "pre" or "post"
 	doctorAgent                     bool   // agent-facing diagnostic mode (ZFC-compliant)
+	doctorConnectivity              bool   // show Dolt connection resolution chain
 )
 
 // ConfigKeyHintsDoctor is the config key for suppressing doctor hints
@@ -148,6 +149,13 @@ Agent Mode (--agent):
   ZFC-compliant: Go observes and reports, the agent decides and acts.
   Combine with --json for structured agent-facing output.
 
+Connectivity Mode (--connectivity):
+  Show the full Dolt connection resolution chain — every config source
+  for host and port, which one wins, and whether the connection succeeds.
+  Useful for debugging when too many config sources conflict (env vars,
+  metadata.json, config.yaml, port files).
+  Combine with --json for machine-parseable output.
+
 Suppressing Warnings:
   Suppress specific warnings by setting doctor.suppress.<check-slug> config:
     bd config set doctor.suppress.pending-migrations true
@@ -182,7 +190,9 @@ Examples:
   bd doctor --server           # Dolt server mode health checks
   bd doctor --migration=pre    # Validate readiness for Dolt migration
   bd doctor --migration=post   # Validate Dolt migration completed
-  bd doctor --migration=pre --json  # Machine-parseable migration validation`,
+  bd doctor --migration=pre --json  # Machine-parseable migration validation
+  bd doctor --connectivity         # Show Dolt connection config chain
+  bd doctor --connectivity --json  # Machine-parseable connection diagnostics`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if isEmbeddedMode() {
 			fmt.Fprintln(os.Stderr, "Note: 'bd doctor' is not yet supported in embedded mode.")
@@ -270,6 +280,20 @@ Examples:
 			return
 		}
 
+		// Run connectivity diagnostics if --connectivity flag is set
+		if doctorConnectivity {
+			result := doctor.RunConnectivityCheck(absPath)
+			if jsonOutput {
+				outputJSON(result)
+			} else {
+				fmt.Print(doctor.FormatConnectivityReport(result))
+			}
+			if !result.Connected {
+				os.Exit(1)
+			}
+			return
+		}
+
 		// Run migration validation if --migration flag is set
 		if doctorMigration != "" {
 			runMigrationValidation(absPath, doctorMigration)
@@ -336,6 +360,7 @@ func init() {
 	doctorCmd.Flags().BoolVar(&doctorServer, "server", false, "Run Dolt server mode health checks (connectivity, version, schema)")
 	doctorCmd.Flags().StringVar(&doctorMigration, "migration", "", "Run Dolt migration validation: 'pre' (before migration) or 'post' (after migration)")
 	doctorCmd.Flags().BoolVar(&doctorAgent, "agent", false, "Agent-facing diagnostic mode: rich context for AI agents (ZFC-compliant)")
+	doctorCmd.Flags().BoolVar(&doctorConnectivity, "connectivity", false, "Show Dolt connection resolution chain (which config source wins for host/port)")
 }
 
 func shouldSkipDoctorNetworkChecks() bool {

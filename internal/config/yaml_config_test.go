@@ -543,6 +543,42 @@ func TestValidateYamlConfigValue_SharedServer(t *testing.T) {
 	}
 }
 
+func TestValidateYamlConfigValue_DoltMode(t *testing.T) {
+	// Valid values
+	if err := validateYamlConfigValue("dolt.mode", "server"); err != nil {
+		t.Errorf("expected 'server' to be valid: %v", err)
+	}
+	if err := validateYamlConfigValue("dolt.mode", "embedded"); err != nil {
+		t.Errorf("expected 'embedded' to be valid: %v", err)
+	}
+	if err := validateYamlConfigValue("dolt.mode", "Server"); err != nil {
+		t.Errorf("expected 'Server' to be valid (case-insensitive): %v", err)
+	}
+	if err := validateYamlConfigValue("dolt.mode", "EMBEDDED"); err != nil {
+		t.Errorf("expected 'EMBEDDED' to be valid (case-insensitive): %v", err)
+	}
+
+	// Invalid values
+	if err := validateYamlConfigValue("dolt.mode", "local"); err == nil {
+		t.Error("expected 'local' to be invalid")
+	}
+	if err := validateYamlConfigValue("dolt.mode", "remote"); err == nil {
+		t.Error("expected 'remote' to be invalid")
+	}
+	if err := validateYamlConfigValue("dolt.mode", ""); err == nil {
+		t.Error("expected empty string to be invalid")
+	}
+	if err := validateYamlConfigValue("dolt.mode", "1"); err == nil {
+		t.Error("expected '1' to be invalid")
+	}
+}
+
+func TestDoltModeIsYamlOnlyKey(t *testing.T) {
+	if !IsYamlOnlyKey("dolt.mode") {
+		t.Error("dolt.mode should be recognized as a yaml-only key")
+	}
+}
+
 func TestCommentOutYamlKey(t *testing.T) {
 	tests := []struct {
 		name     string

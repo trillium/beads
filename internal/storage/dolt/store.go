@@ -191,6 +191,8 @@ type DoltStore struct {
 	remoteUser     string // Remote auth user for Hosted Dolt push/pull (optional)
 	remotePassword string // Remote auth password for Hosted Dolt push/pull (optional)
 	serverMode     bool   // true when connected to external dolt sql-server (not embedded)
+	serverHost     string // Server host (for remote-server detection in push/pull routing)
+	serverOwner    doltserver.ServerMode
 
 	// autoStartedServerDir is set when this store triggered a dolt sql-server
 	// auto-start. Close() uses it to stop the server when the last store
@@ -1096,6 +1098,8 @@ func newServerMode(ctx context.Context, cfg *Config) (*DoltStore, error) {
 		remoteUser:           cfg.RemoteUser,
 		remotePassword:       cfg.RemotePassword,
 		serverMode:           true,
+		serverHost:           cfg.ServerHost,
+		serverOwner:          doltserver.ResolveServerMode(beadsDir),
 		readOnly:             cfg.ReadOnly,
 		autoStartedServerDir: autoStartedDir,
 	}
@@ -1558,6 +1562,32 @@ func (s *DoltStore) CLIDir() string {
 		return ""
 	}
 	return filepath.Join(s.dbPath, s.database)
+}
+
+func (s *DoltStore) requiresExplicitCLIDir() bool {
+	return s.serverMode &&
+		s.serverOwner == doltserver.ServerModeExternal &&
+		!doltserver.IsSharedServerMode()
+}
+
+// isRemoteServer returns true when the store is connected to a Dolt
+// sql-server running on a remote host (not localhost). In this case,
+// CLI-based push/pull is impossible (no local database directory), but
+// SQL-based CALL DOLT_PUSH / CALL DOLT_PULL works because the command
+// is sent to the remote server which executes it server-side.
+func (s *DoltStore) isRemoteServer() bool {
+	return s.serverMode && !isLocalHost(s.serverHost)
+}
+
+func (s *DoltStore) requireCLIDir(operation string) (string, error) {
+	dir := s.CLIDir()
+	if dir != "" {
+		return dir, nil
+	}
+	if s.requiresExplicitCLIDir() {
+		return "", fmt.Errorf("%s requires a local Dolt CLI database directory in external-server mode; set %s to the local Dolt database path or use a remote type supported by SQL DOLT_PUSH/DOLT_PULL", operation, EnvDoltCLIDir)
+	}
+	return "", fmt.Errorf("%s requires a local Dolt CLI database directory, but none is configured", operation)
 }
 
 // DoltGC runs Dolt garbage collection to reclaim disk space.
@@ -2063,12 +2093,20 @@ func (s *DoltStore) pushToRemote(ctx context.Context, remote string, force bool)
 	if s.shouldUseCLIForCredentials(ctx, remote, creds) {
 		return s.doltCLIPush(ctx, remote, force, creds)
 	}
+	if !creds.empty() && s.requiresExplicitCLIDir() && s.CLIDir() == "" && !s.isRemoteServer() {
+		_, err := s.requireCLIDir("dolt push")
+		return err
+	}
 	// Cloud auth CLI routing: when cloud storage env vars (AZURE_*, AWS_*,
 	// etc.) are set and we're in server mode, route through CLI so the dolt
 	// subprocess inherits the current env. The SQL server may not have these
 	// vars if it was started in a different context (GH#6).
 	if s.shouldUseCLIForCloudAuth(remote) {
 		return s.doltCLIPush(ctx, remote, force, creds)
+	}
+	if s.requiresExplicitCLIDir() && s.CLIDir() == "" && s.hasCloudAuthForSQLRemote(ctx, remote) && !s.isRemoteServer() {
+		_, err := s.requireCLIDir("dolt push")
+		return err
 	}
 	// If the same remote exists in the local Dolt directory, prefer CLI push.
 	// This matches direct `dolt push` behavior and avoids sql-server mediated
@@ -2169,9 +2207,17 @@ func (s *DoltStore) pullFromRemote(ctx context.Context, remote string) (retErr e
 		}
 		return nil
 	}
+	if !creds.empty() && s.requiresExplicitCLIDir() && s.CLIDir() == "" && !s.isRemoteServer() {
+		_, err := s.requireCLIDir("dolt pull")
+		return err
+	}
 	// Cloud auth CLI routing (GH#6).
 	if s.shouldUseCLIForCloudAuth(remote) {
 		return s.doltCLIPull(ctx, remote, creds)
+	}
+	if s.requiresExplicitCLIDir() && s.CLIDir() == "" && s.hasCloudAuthForSQLRemote(ctx, remote) && !s.isRemoteServer() {
+		_, err := s.requireCLIDir("dolt pull")
+		return err
 	}
 	if s.remoteUser != "" && remote == s.remote {
 		return withRemoteOperationEnv(creds, s.isS3Remote(ctx, remote), func() error {

@@ -166,13 +166,15 @@ func TestRemoteServerCLIDirConflictDetected(t *testing.T) {
 	s := &DoltStore{
 		serverHost: "mini2",
 		serverMode: true,
+		dbPath:     "/tmp/fake-dolt-dir",
+		database:   "beads",
 	}
 
 	if !s.isRemoteServer() {
 		t.Fatal("expected isRemoteServer() = true for host 'mini2'")
 	}
 	if s.CLIDir() == "" {
-		t.Fatal("expected CLIDir() non-empty when BEADS_DOLT_CLI_DIR is set")
+		t.Fatal("expected CLIDir() non-empty when dbPath is set")
 	}
 
 	// The warnCLIDirIgnoredForRemoteServer helper should return a non-empty

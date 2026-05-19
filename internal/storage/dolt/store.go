@@ -49,6 +49,9 @@ import (
 // DefaultSQLPort is the default port for dolt sql-server.
 const DefaultSQLPort = 3307
 
+// EnvDoltCLIDir is the environment variable name for BEADS_DOLT_CLI_DIR.
+const EnvDoltCLIDir = "BEADS_DOLT_CLI_DIR"
+
 // testDatabasePrefixes are name prefixes that indicate a test database.
 // Used by isTestDatabaseName to prevent test databases from being created
 // on the production Dolt server (Clown Shows #12-#18).
@@ -2115,10 +2118,6 @@ func (s *DoltStore) pushToRemote(ctx context.Context, remote string, force bool)
 	if s.shouldUseCLIForCloudAuth(remote) {
 		return s.doltCLIPush(ctx, remote, force, creds)
 	}
-	if s.requiresExplicitCLIDir() && s.CLIDir() == "" && s.hasCloudAuthForSQLRemote(ctx, remote) && !s.isRemoteServer() {
-		_, err := s.requireCLIDir("dolt push")
-		return err
-	}
 	// If the same remote exists in the local Dolt directory, prefer CLI push.
 	// This matches direct `dolt push` behavior and avoids sql-server mediated
 	// DOLT_PUSH failures for Hosted Dolt HTTPS remotes (GH#3358).
@@ -2228,10 +2227,6 @@ func (s *DoltStore) pullFromRemote(ctx context.Context, remote string) (retErr e
 	// Cloud auth CLI routing (GH#6).
 	if s.shouldUseCLIForCloudAuth(remote) {
 		return s.doltCLIPull(ctx, remote, creds)
-	}
-	if s.requiresExplicitCLIDir() && s.CLIDir() == "" && s.hasCloudAuthForSQLRemote(ctx, remote) && !s.isRemoteServer() {
-		_, err := s.requireCLIDir("dolt pull")
-		return err
 	}
 	if s.remoteUser != "" && remote == s.remote {
 		return withRemoteOperationEnv(creds, s.isS3Remote(ctx, remote), func() error {

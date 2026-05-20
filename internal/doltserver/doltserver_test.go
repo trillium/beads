@@ -690,7 +690,12 @@ func TestStopNotRunningWithCleanupError(t *testing.T) {
 }
 
 func TestKillStaleServersPreservesOtherRepoServers(t *testing.T) {
-	t.Setenv("BEADS_DOLT_AUTO_START", "") // ensure auto-start guard doesn't short-circuit
+	t.Setenv("BEADS_DOLT_AUTO_START", "")    // ensure auto-start guard doesn't short-circuit
+	t.Setenv("BEADS_DOLT_SERVER_MODE", "")   // prevent host env from forcing ServerModeExternal
+	t.Setenv("BEADS_DOLT_SHARED_SERVER", "") // prevent shared-server from forcing external
+	t.Setenv("BEADS_DOLT_SERVER_HOST", "")   // prevent host override
+	t.Setenv("BEADS_DOLT_SERVER_PORT", "")   // prevent port override
+	t.Setenv("BEADS_DOLT_PORT", "")
 	dir := t.TempDir()
 	canonicalPID := 111
 	sameRepoOrphanPID := 222

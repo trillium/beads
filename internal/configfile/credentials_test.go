@@ -125,6 +125,7 @@ func TestLookupCredentialsPassword_FallsBackToFile(t *testing.T) {
 }
 
 func TestLookupCredentialsPassword_MultipleServers(t *testing.T) {
+	clearDoltEnvVars(t)
 	// Verify different projects connecting to different servers get the right password
 	tmpDir := t.TempDir()
 	credFile := filepath.Join(tmpDir, "credentials")
@@ -160,6 +161,7 @@ password=workServerPass
 }
 
 func TestGetDoltServerPasswordForPort_OverridesConfigPort(t *testing.T) {
+	clearDoltEnvVars(t)
 	// Simulates the tunnel scenario: metadata.json has port 3308 (tunnel)
 	// but the doltserver port file resolves to 3307 (local). The credentials
 	// file has the password under [127.0.0.1:3307]. GetDoltServerPassword()

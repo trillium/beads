@@ -143,15 +143,13 @@ func TestOpenFromConfig_DefaultsToEmbedded(t *testing.T) {
 
 func TestOpenFromConfig_ServerModeFailsWithoutServer(t *testing.T) {
 	// Server mode should fail-fast when no server is listening.
-	// Temporarily unset BEADS_DOLT_PORT/BEADS_TEST_MODE so the config port
-	// isn't overridden by applyConfigDefaults to the test server.
-	if prev := os.Getenv("BEADS_DOLT_PORT"); prev != "" {
-		os.Unsetenv("BEADS_DOLT_PORT")
-		t.Cleanup(func() { os.Setenv("BEADS_DOLT_PORT", prev) })
-	}
-	if prev := os.Getenv("BEADS_TEST_MODE"); prev != "" {
-		os.Unsetenv("BEADS_TEST_MODE")
-		t.Cleanup(func() { os.Setenv("BEADS_TEST_MODE", prev) })
+	// Clear all Dolt env vars so metadata.json values are used directly.
+	for _, k := range []string{
+		"BEADS_DOLT_PORT", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_SERVER_HOST",
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER", "BEADS_TEST_MODE",
+		"BEADS_DOLT_AUTO_START",
+	} {
+		t.Setenv(k, "")
 	}
 
 	tmpDir := t.TempDir()
@@ -178,9 +176,9 @@ func TestOpenFromConfig_ServerModeFailsWithoutServer(t *testing.T) {
 	if openErr == nil {
 		t.Fatal("OpenFromConfig (server mode) should fail when no server is running")
 	}
-	// Should contain "unreachable" from the fail-fast TCP check
-	if !strings.Contains(openErr.Error(), "unreachable") {
-		t.Errorf("expected 'unreachable' in error, got: %v", openErr)
+	// Should contain "cannot connect" from the fail-fast TCP check
+	if !strings.Contains(openErr.Error(), "cannot connect") {
+		t.Errorf("expected 'cannot connect' in error, got: %v", openErr)
 	}
 }
 
@@ -233,13 +231,12 @@ func TestOpenBestAvailable_ServerMode(t *testing.T) {
 
 func TestOpenBestAvailable_ServerMode_FailsWithoutServer(t *testing.T) {
 	// OpenBestAvailable in server mode should propagate the fail-fast error.
-	if prev := os.Getenv("BEADS_DOLT_PORT"); prev != "" {
-		os.Unsetenv("BEADS_DOLT_PORT")
-		t.Cleanup(func() { os.Setenv("BEADS_DOLT_PORT", prev) })
-	}
-	if prev := os.Getenv("BEADS_TEST_MODE"); prev != "" {
-		os.Unsetenv("BEADS_TEST_MODE")
-		t.Cleanup(func() { os.Setenv("BEADS_TEST_MODE", prev) })
+	for _, k := range []string{
+		"BEADS_DOLT_PORT", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_SERVER_HOST",
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER", "BEADS_TEST_MODE",
+		"BEADS_DOLT_AUTO_START",
+	} {
+		t.Setenv(k, "")
 	}
 
 	tmpDir := t.TempDir()
@@ -265,8 +262,8 @@ func TestOpenBestAvailable_ServerMode_FailsWithoutServer(t *testing.T) {
 	if openErr == nil {
 		t.Fatal("OpenBestAvailable (server mode) should fail when no server is running")
 	}
-	if !strings.Contains(openErr.Error(), "unreachable") {
-		t.Errorf("expected 'unreachable' in error, got: %v", openErr)
+	if !strings.Contains(openErr.Error(), "cannot connect") {
+		t.Errorf("expected 'cannot connect' in error, got: %v", openErr)
 	}
 }
 

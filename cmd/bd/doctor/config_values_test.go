@@ -148,6 +148,14 @@ func TestCheckConfigValues_WorktreeFallbackUsesSharedConfig(t *testing.T) {
 }
 
 func TestCheckMetadataConfigValues(t *testing.T) {
+	// Clear production Dolt env vars so tests exercise metadata.json values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_PORT",
+	} {
+		t.Setenv(k, "")
+	}
+
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 	beadsDir := filepath.Join(tmpDir, ".beads")

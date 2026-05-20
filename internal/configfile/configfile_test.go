@@ -9,6 +9,25 @@ import (
 	"github.com/steveyegge/beads/internal/config"
 )
 
+// clearDoltEnvVars neutralizes production Dolt env vars so unit tests
+// exercise the Config struct values rather than the host environment.
+func clearDoltEnvVars(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE",
+		"BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST",
+		"BEADS_DOLT_SERVER_PORT",
+		"BEADS_DOLT_PORT",
+		"BEADS_DOLT_SERVER_USER",
+		"BEADS_DOLT_SERVER_DATABASE",
+		"BEADS_DOLT_SERVER_SOCKET",
+		"BEADS_DOLT_PASSWORD",
+	} {
+		t.Setenv(k, "")
+	}
+}
+
 func TestDefaultConfig(t *testing.T) {
 	cfg := DefaultConfig()
 
@@ -172,6 +191,8 @@ func TestGetDeletionsRetentionDays(t *testing.T) {
 
 // TestDoltServerMode tests the Dolt server mode configuration (bd-dolt.2.2)
 func TestDoltServerMode(t *testing.T) {
+	clearDoltEnvVars(t)
+
 	t.Run("IsDoltServerMode", func(t *testing.T) {
 		tests := []struct {
 			name string
@@ -368,6 +389,8 @@ func TestDoltServerMode(t *testing.T) {
 
 // TestIsDoltServerModeEnvVar tests env var overrides for IsDoltServerMode
 func TestIsDoltServerModeEnvVar(t *testing.T) {
+	clearDoltEnvVars(t)
+
 	t.Run("env var override with dolt backend", func(t *testing.T) {
 		t.Setenv("BEADS_DOLT_SERVER_MODE", "1")
 		cfg := &Config{Backend: BackendDolt}
@@ -396,6 +419,8 @@ func TestIsDoltServerModeEnvVar(t *testing.T) {
 // the GetCapabilities branch that treats proxied-server as multi-process-safe
 // (the proxy daemon serializes writers).
 func TestDoltProxiedServerMode(t *testing.T) {
+	clearDoltEnvVars(t)
+
 	t.Run("IsDoltProxiedServerMode", func(t *testing.T) {
 		tests := []struct {
 			name string
@@ -801,6 +826,8 @@ func TestCapabilitiesForBackend(t *testing.T) {
 
 // TestGetCapabilities tests that GetCapabilities properly handles server mode
 func TestGetCapabilities(t *testing.T) {
+	clearDoltEnvVars(t)
+
 	tests := []struct {
 		name           string
 		cfg            *Config
@@ -835,6 +862,8 @@ func TestGetCapabilities(t *testing.T) {
 
 // TestDoltServerModeRoundtrip tests that server mode config survives save/load
 func TestDoltServerModeRoundtrip(t *testing.T) {
+	clearDoltEnvVars(t)
+
 	tmpDir := t.TempDir()
 	beadsDir := filepath.Join(tmpDir, ".beads")
 	if err := os.MkdirAll(beadsDir, 0750); err != nil {
@@ -878,6 +907,8 @@ func TestDoltServerModeRoundtrip(t *testing.T) {
 
 // TestEnvVarOverrides tests env var overrides for getter methods
 func TestEnvVarOverrides(t *testing.T) {
+	clearDoltEnvVars(t)
+
 	t.Run("host env var overrides config", func(t *testing.T) {
 		t.Setenv("BEADS_DOLT_SERVER_HOST", "192.168.1.1")
 		cfg := &Config{DoltServerHost: "10.0.0.1"}

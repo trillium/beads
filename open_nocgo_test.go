@@ -15,6 +15,15 @@ import (
 )
 
 func TestOpenBestAvailable_NoCGO_EmbeddedMode_ReturnsError(t *testing.T) {
+	// Clear Dolt env vars so metadata.json values are used directly.
+	for _, k := range []string{
+		"BEADS_DOLT_PORT", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_SERVER_HOST",
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER", "BEADS_TEST_MODE",
+		"BEADS_DOLT_AUTO_START",
+	} {
+		t.Setenv(k, "")
+	}
+
 	tmpDir := t.TempDir()
 	beadsDir := filepath.Join(tmpDir, ".beads")
 	if err := os.MkdirAll(beadsDir, 0755); err != nil {
@@ -37,6 +46,14 @@ func TestOpenBestAvailable_NoCGO_EmbeddedMode_ReturnsError(t *testing.T) {
 }
 
 func TestOpenBestAvailable_NoCGO_NoMetadata_ReturnsError(t *testing.T) {
+	for _, k := range []string{
+		"BEADS_DOLT_PORT", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_SERVER_HOST",
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER", "BEADS_TEST_MODE",
+		"BEADS_DOLT_AUTO_START",
+	} {
+		t.Setenv(k, "")
+	}
+
 	tmpDir := t.TempDir()
 	beadsDir := filepath.Join(tmpDir, ".beads")
 	if err := os.MkdirAll(beadsDir, 0755); err != nil {
@@ -57,13 +74,12 @@ func TestOpenBestAvailable_NoCGO_NoMetadata_ReturnsError(t *testing.T) {
 func TestOpenBestAvailable_NoCGO_ServerMode_FailsWithoutServer(t *testing.T) {
 	// Even in !cgo builds, server mode should delegate to OpenFromConfig and
 	// return the fail-fast error when no server is listening.
-	if prev := os.Getenv("BEADS_DOLT_PORT"); prev != "" {
-		os.Unsetenv("BEADS_DOLT_PORT")
-		t.Cleanup(func() { os.Setenv("BEADS_DOLT_PORT", prev) })
-	}
-	if prev := os.Getenv("BEADS_TEST_MODE"); prev != "" {
-		os.Unsetenv("BEADS_TEST_MODE")
-		t.Cleanup(func() { os.Setenv("BEADS_TEST_MODE", prev) })
+	for _, k := range []string{
+		"BEADS_DOLT_PORT", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_SERVER_HOST",
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER", "BEADS_TEST_MODE",
+		"BEADS_DOLT_AUTO_START",
+	} {
+		t.Setenv(k, "")
 	}
 
 	tmpDir := t.TempDir()
@@ -89,7 +105,7 @@ func TestOpenBestAvailable_NoCGO_ServerMode_FailsWithoutServer(t *testing.T) {
 	if openErr == nil {
 		t.Fatal("OpenBestAvailable (server mode) should fail when no server is running")
 	}
-	if !strings.Contains(openErr.Error(), "unreachable") {
-		t.Errorf("expected 'unreachable' in error, got: %v", openErr)
+	if !strings.Contains(openErr.Error(), "cannot connect") {
+		t.Errorf("expected 'cannot connect' in error, got: %v", openErr)
 	}
 }

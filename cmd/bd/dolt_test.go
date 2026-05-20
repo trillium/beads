@@ -536,6 +536,14 @@ func TestTestServerConnection(t *testing.T) {
 }
 
 func TestDoltConfigGetters(t *testing.T) {
+	// Clear production Dolt env vars so test exercises config struct values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_PORT",
+	} {
+		t.Setenv(k, "")
+	}
+
 	t.Run("GetDoltMode defaults", func(t *testing.T) {
 		cfg := configfile.DefaultConfig()
 		if cfg.GetDoltMode() != configfile.DoltModeEmbedded {

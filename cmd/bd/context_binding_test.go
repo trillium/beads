@@ -52,8 +52,15 @@ func restoreRootFlagState(t *testing.T, state map[string]flagSnapshot) {
 }
 
 func TestPrepareSelectedCommandContext_RebindsTargetConfig(t *testing.T) {
-	t.Setenv("BEADS_DOLT_SERVER_DATABASE", "")
-	t.Setenv("BEADS_DOLT_SERVER_PORT", "")
+	// Clear production env vars that override config-driven values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_DATABASE", "BEADS_DOLT_SERVER_PORT",
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_PORT",
+		"BEADS_ACTOR", "BD_ACTOR",
+	} {
+		t.Setenv(k, "")
+	}
 
 	callerDir := t.TempDir()
 	callerBeadsDir := filepath.Join(callerDir, ".beads")
@@ -132,8 +139,14 @@ func TestPrepareSelectedCommandContext_RebindsTargetConfig(t *testing.T) {
 }
 
 func TestPrepareSelectedCommandContext_DoesNotMergeCallerConfigForUnsetKeys(t *testing.T) {
-	t.Setenv("BEADS_DOLT_SERVER_DATABASE", "")
-	t.Setenv("BEADS_DOLT_SERVER_PORT", "")
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_DATABASE", "BEADS_DOLT_SERVER_PORT",
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_PORT",
+		"BEADS_ACTOR", "BD_ACTOR",
+	} {
+		t.Setenv(k, "")
+	}
 
 	root := t.TempDir()
 	callerDir := filepath.Join(root, "caller")

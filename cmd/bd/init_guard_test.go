@@ -142,6 +142,14 @@ func TestInitGuardDBCheck_ServerUnreachable(t *testing.T) {
 }
 
 func TestInitGuard_FreshCloneWithMetadataJSON(t *testing.T) {
+	// Clear production Dolt env vars so test exercises metadata.json values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_PORT",
+	} {
+		t.Setenv(k, "")
+	}
+
 	// GH#2433: On a fresh clone, metadata.json is committed (tracked by git)
 	// but dolt/ directory is gitignored. The init guard should recognize this
 	// as a fresh clone and allow init to proceed.

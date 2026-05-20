@@ -64,6 +64,14 @@ func TestContextInfo_ServerModeIdentity(t *testing.T) {
 // TestContextInfo_EmbeddedModeIdentity verifies that the default (embedded)
 // mode config reports embedded mode with no server host/port overrides.
 func TestContextInfo_EmbeddedModeIdentity(t *testing.T) {
+	// Clear production Dolt env vars so test exercises config struct values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_PORT",
+	} {
+		t.Setenv(k, "")
+	}
+
 	tmpDir := t.TempDir()
 	beadsDir := filepath.Join(tmpDir, ".beads")
 	if err := os.MkdirAll(beadsDir, 0755); err != nil {
@@ -186,6 +194,14 @@ func TestContextInfo_ProjectIDPresent(t *testing.T) {
 // overrides the value from metadata.json. This is the drift vector from
 // GH#2438: env vars and config can diverge silently.
 func TestContextInfo_EnvVarOverrides(t *testing.T) {
+	// Clear production Dolt env vars so test exercises config struct values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_PORT",
+	} {
+		t.Setenv(k, "")
+	}
+
 	tmpDir := t.TempDir()
 	beadsDir := filepath.Join(tmpDir, ".beads")
 	if err := os.MkdirAll(beadsDir, 0755); err != nil {

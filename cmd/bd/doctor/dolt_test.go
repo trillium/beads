@@ -12,6 +12,14 @@ import (
 // (bd-yqpwy)
 
 func TestRunDoltHealthChecks_DoltBackendNoServer(t *testing.T) {
+	// Clear production Dolt env vars so test exercises metadata.json values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_PORT",
+	} {
+		t.Setenv(k, "")
+	}
+
 	// GH#2722: In owned/embedded mode (non-external), when no server is
 	// running, server-dependent checks should be skipped gracefully (StatusOK)
 	// instead of reporting false errors. The embedded SharedStore checks

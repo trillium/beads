@@ -113,6 +113,14 @@ func TestCheckFreshCloneDB_ServerUnreachable(t *testing.T) {
 }
 
 func TestCheckFreshClone_ServerModeUnreachable(t *testing.T) {
+	// Clear production Dolt env vars so test exercises metadata.json values.
+	for _, k := range []string{
+		"BEADS_DOLT_SERVER_MODE", "BEADS_DOLT_SHARED_SERVER",
+		"BEADS_DOLT_SERVER_HOST", "BEADS_DOLT_SERVER_PORT", "BEADS_DOLT_PORT",
+	} {
+		t.Setenv(k, "")
+	}
+
 	// GH#35 + bd-tzo9: When metadata.json declares dolt_mode=server but the
 	// server is unreachable, CheckFreshClone must:
 	//   1. Resolve credentials by the resolved runtime port (bd-tzo9), not

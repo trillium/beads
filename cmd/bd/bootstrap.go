@@ -517,17 +517,38 @@ func executeBootstrapPlan(plan BootstrapPlan, cfg *configfile.Config, nonInterac
 	return nil
 }
 
+// bootstrapDoltConfig builds the store config for the init, restore, and
+// jsonl-import actions. It honors server mode from metadata.json (or shared
+// server mode) so a server-mode workspace is created on the Dolt server and
+// never falls through to an embedded store under .beads/embeddeddolt/.
+func bootstrapDoltConfig(beadsDir string, cfg *configfile.Config, dbName string) *dolt.Config {
+	doltCfg := &dolt.Config{
+		Path:            doltserver.ResolveDoltDir(beadsDir),
+		Database:        dbName,
+		CreateIfMissing: true,
+		AutoStart:       true,
+		BeadsDir:        beadsDir,
+	}
+	if cfg == nil || cfg.IsDoltProxiedServerMode() {
+		return doltCfg
+	}
+	if cfg.IsDoltServerMode() || bootstrapSharedServerMode(beadsDir) {
+		doltCfg.ServerMode = true
+		doltCfg.ServerHost = cfg.GetDoltServerHost()
+		doltCfg.ServerPort = doltserver.DefaultConfig(beadsDir).Port
+		doltCfg.ServerSocket = cfg.GetDoltServerSocket()
+		doltCfg.ServerUser = cfg.GetDoltServerUser()
+		doltCfg.ServerPassword = cfg.GetDoltServerPasswordForPort(doltCfg.ServerPort)
+		doltCfg.ServerTLS = cfg.GetDoltServerTLS()
+	}
+	return doltCfg
+}
+
 func executeInitAction(ctx context.Context, plan BootstrapPlan, cfg *configfile.Config) error {
 	prefix := inferPrefix(cfg)
 	dbName := cfg.GetDoltDatabase()
 
-	s, err := newDoltStore(ctx, &dolt.Config{
-		Path:            doltserver.ResolveDoltDir(plan.BeadsDir),
-		Database:        dbName,
-		CreateIfMissing: true,
-		AutoStart:       true,
-		BeadsDir:        plan.BeadsDir,
-	})
+	s, err := newDoltStore(ctx, bootstrapDoltConfig(plan.BeadsDir, cfg, dbName))
 	if err != nil {
 		return fmt.Errorf("create database: %w", err)
 	}
@@ -548,13 +569,7 @@ func executeRestoreAction(ctx context.Context, plan BootstrapPlan, cfg *configfi
 	prefix := inferPrefix(cfg)
 	dbName := cfg.GetDoltDatabase()
 
-	s, err := newDoltStore(ctx, &dolt.Config{
-		Path:            doltserver.ResolveDoltDir(plan.BeadsDir),
-		Database:        dbName,
-		CreateIfMissing: true,
-		AutoStart:       true,
-		BeadsDir:        plan.BeadsDir,
-	})
+	s, err := newDoltStore(ctx, bootstrapDoltConfig(plan.BeadsDir, cfg, dbName))
 	if err != nil {
 		return fmt.Errorf("create database: %w", err)
 	}
@@ -579,13 +594,7 @@ func executeJSONLImportAction(ctx context.Context, plan BootstrapPlan, cfg *conf
 	prefix := inferPrefix(cfg)
 	dbName := cfg.GetDoltDatabase()
 
-	s, err := newDoltStore(ctx, &dolt.Config{
-		Path:            doltserver.ResolveDoltDir(plan.BeadsDir),
-		Database:        dbName,
-		CreateIfMissing: true,
-		AutoStart:       true,
-		BeadsDir:        plan.BeadsDir,
-	})
+	s, err := newDoltStore(ctx, bootstrapDoltConfig(plan.BeadsDir, cfg, dbName))
 	if err != nil {
 		return fmt.Errorf("create database: %w", err)
 	}

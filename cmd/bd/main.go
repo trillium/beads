@@ -980,6 +980,9 @@ var rootCmd = &cobra.Command{
 			if cmdCtx != nil {
 				cmdCtx.ServerMode = doltCfg.ServerMode
 			}
+			if doltCfg.ServerMode {
+				warnShadowedEmbeddedDolt(os.Stderr, beadsDir)
+			}
 
 			// Always set database name (needed for bootstrap to find
 			// prefix-based databases like "beads_hq"; see #1669)
